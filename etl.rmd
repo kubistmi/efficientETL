@@ -1,7 +1,7 @@
 ---
 title: "Efficient Data Handling"
 author: "Michal Kubišta"
-date: "2018/2/19"
+date: "2018/03/21"
 output:
   xaringan::moon_reader:
     lib_dir: libs
