@@ -1,0 +1,281 @@
+---
+title: "Efficient Data Handling"
+author: "Michal Kubišta"
+date: "2018/2/19"
+output:
+  xaringan::moon_reader:
+    lib_dir: libs
+    nature:
+      highlightStyle: github
+      highlightLines: true
+      countIncrementalSlides: false
+---
+
+```{r setup, include=FALSE}
+options(htmltools.dir.version = FALSE)
+library(magrittr)
+library(data.table)
+library(tidyverse)
+```
+
+class: center, middle
+
+# What's ETL?
+<img src = www/etl.jpg>
+
+---
+
+# Terminology
+- table
+- vector
+
+---
+
+# Packages
+- software extensions
+- on 2017-01 there were 10 000 official ones
+    - fraction of the real number
+- today: two framework packages
+    - tidyverse
+    - data.table
+- framework: offer a wide range of commands to cover the majority of common functionalities
+- new functions or changing the old ones
+    - base::merge() **VS** dplyr::inner_join()
+    - base::merge() **VS** data.table::merge()
+
+---
+
+# Key words - single table
+- read
+- filter
+- select
+- arrange
+- mutate
+- group by & summarize
+- write
+
+---
+
+# Base R (no package)
+
+```{r base_func}
+input <- read.csv("data/main.csv")
+input = read.csv("data/main.csv")
+# BOTH ARE EQUAL
+
+colnames(input)
+
+input[1,8] # row = 1, column = 8
+```
+
+---
+
+```{r base_func2}
+input[1:5, "product_id"] # row = 1 to 5, column named "product_id"
+
+input[c(1,7),c("product_id", "period_id")] # row = 1 & 7, columns named "product_id" & "period_id"
+
+# keeping one of the arguments empty ([,a] OR [a,]) gives you all rows
+# and columns specified by a, or all columns and rows specified by a
+input[5,] # row = 5, column = ALL
+
+input$period_id[5] # choose column named period_id, 5th value (=row) only
+
+```
+
+---
+
+# READING FLATFILES
+
+```{r read, message=FALSE, warning=FALSE}
+# BASE
+raw_b = read.csv("data/main.csv")
+# TIDYVERSE
+raw_t = readr::read_csv("data/main.csv", col_types = cols())
+# DATA.TABLE
+raw_d = data.table::fread("data/main.csv")
+```
+
+---
+
+# FILTER & SELECT
+```{r filter}
+# BASE
+raw_b[raw_b$X1.sales < 551,"product_id"]
+
+# TIDYVERSE
+raw_t %>% 
+    filter(X1.sales < 551) %>% 
+    select(product_id)
+
+# DATA.TABLE
+raw_d[X1.sales < 551, product_id]
+```
+
+---
+
+# ARRANGE
+```{r arrange}
+# BASE
+raw_b = raw_b[order(raw_b$X1.sales),]
+raw_b[1:5, "X1.sales"]
+
+# TIDYVERSE
+raw_t = raw_t %>% 
+    arrange(X1.sales)
+raw_t$X1.sales[1:5]
+
+# DATA.TABLE
+raw_d = raw_d[order(X1.sales)]
+raw_d[1:5, X1.sales]
+
+```
+
+---
+
+# MUTATE
+```{r mutate}
+# BASE
+raw_b$diff = raw_b$X1.sales - raw_b$X2.sales
+raw_b$diff[1:5]
+
+# TIDYVERSE
+raw_t = raw_t %>% 
+    mutate(diff = X1.sales - X2.sales)
+raw_t$diff[1:5]
+
+# DATA.TABLE
+raw_d[,diff := X1.sales - X2.sales][1:5,diff]
+
+```
+
+---
+
+# GROUP BY & SUMMARISE
+```{r aggregate}
+# BASE
+aggregate(X1.sales ~ cat, raw_b, sum)
+
+# TIDYVERSE
+raw_b %>% 
+    group_by(cat) %>% 
+    summarise(sales = sum(X1.sales))
+```
+
+---
+
+```{r aggregate2}
+# DATA.TABLE
+raw_d[,.(sales = sum(X1.sales)), by = cat]
+
+```
+
+---
+
+# WRITE FLATFILES
+
+```{r write, eval=FALSE}
+# BASE
+write.csv(raw_b, "data/main.csv")
+# TIDYVERSE
+readr::write_csv(raw_t, "data/main.csv")
+# DATA.TABLE
+data.table::fwrite(raw_d, "data/main.csv")
+```
+
+---
+
+# Key words - multi-table and looping
+- bind
+- joins
+- vectorisation
+
+---
+
+# BINDING
+- implemented in base R
+- just glue tables together
+
+```{r prepare, include = FALSE}
+tab1 = data.frame(a = 1:4, b = 5:8)
+tab2 = data.frame(d = 2:5, g = c("a","b","c","d"))
+tab3 = data.frame(a = 10:15, b = 20:25)
+```
+
+
+.pull-left[
+```{r tab1}
+    tab1
+```
+]
+
+.pull-right[
+```{r tab2}
+    tab2
+```
+]
+```{r tab3}
+tab3
+```
+
+---
+
+```{r binds}
+rbind(tab1, tab3) # bind rows (need same column names)
+cbind(tab1, tab2) # bind columns (need same number of rows)
+```
+
+---
+
+# JOINS
+- think vlookups (svyhledat)
+- joinig two tables
+    - on **ID!**
+
+<img src=www/joins.png>
+
+---
+
+```{r prepare_join, include = FALSE}
+ref = fread("data/ref_table.csv")
+```
+
+```{r joins}
+# BASE, control by all.x = T/F & all.y = T/F
+joint_b = merge(raw_b, ref, by = "period_id")
+c(original = ncol(raw_b), merged = ncol(joint_b))
+
+# TIDYVERSE, control by different function names (left_join, ...)
+joint_t = inner_join(raw_t, ref, by = "period_id")
+c(original = ncol(raw_t), merged = ncol(joint_t))
+
+# DATA.TABLE, control by nomatch, or different positions (X[Y] OR Y[x])
+joint_d = raw_d[ref, on = "period_id"]
+c(original = ncol(raw_d), merged = ncol(joint_d))
+
+```
+
+---
+
+# Vectorisation
+- avoid for loops!
+
+<img src= www/purrr.jpg height = 450>
+
+---
+
+# Vectorisation
+```{r vector}
+file_names = list.files("data/sub", full.names = T)
+
+# BASE
+raw_b = lapply(file_names, read.csv) # list of tables
+raw_b = do.call(rbind, raw_b) # rbind tables into one
+
+# TIDYVERSE
+raw_t = map_df(file_names, read.csv) # nice and simple
+
+# DATA.TABLE
+raw_d = as.data.table(file_names)[,fread(file_names), by = file_names]
+
+```

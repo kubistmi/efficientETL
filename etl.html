@@ -1,0 +1,508 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Efficient Data Handling</title>
+    <meta charset="utf-8">
+    <meta name="author" content="Michal Kubišta" />
+    <link href="libs/remark-css/default.css" rel="stylesheet" />
+    <link href="libs/remark-css/default-fonts.css" rel="stylesheet" />
+  </head>
+  <body>
+    <textarea id="source">
+class: center, middle, inverse, title-slide
+
+# Efficient Data Handling
+### Michal Kubišta
+### 2018/2/19
+
+---
+
+
+
+
+class: center, middle
+
+# What's ETL?
+&lt;img src = www/etl.jpg&gt;
+
+---
+
+# Terminology
+- table
+- vector
+
+---
+
+# Packages
+- software extensions
+- on 2017-01 there were 10 000 official ones
+    - fraction of the real number
+- today: two framework packages
+    - tidyverse
+    - data.table
+- framework: offer a wide range of commands to cover the majority of common functionalities
+- new functions or changing the old ones
+    - base::merge() **VS** dplyr::inner_join()
+    - base::merge() **VS** data.table::merge()
+
+---
+
+# Key words - single table
+- read
+- filter
+- select
+- arrange
+- mutate
+- group by &amp; summarize
+- write
+
+---
+
+# Base R (no package)
+
+
+```r
+input &lt;- read.csv("data/main.csv")
+input = read.csv("data/main.csv")
+# BOTH ARE EQUAL
+
+colnames(input)
+```
+
+```
+##  [1] "period_id"  "product_id" "X1.sales"   "X1.items"   "X2.sales"  
+##  [6] "X2.items"   "X3.sales"   "X3.items"   "X4.sales"   "X4.items"  
+## [11] "X5.sales"   "X5.items"   "cat"
+```
+
+```r
+input[1,8] # row = 1, column = 8
+```
+
+```
+## [1] 4493
+```
+
+---
+
+
+```r
+input[1:5, "product_id"] # row = 1 to 5, column named "product_id"
+```
+
+```
+## [1] 148022 829913 426433 116726 809182
+```
+
+```r
+input[c(1,7),c("product_id", "period_id")] # row = 1 &amp; 7, columns named "product_id" &amp; "period_id"
+```
+
+```
+##   product_id period_id
+## 1     148022      9669
+## 7     472203     15568
+```
+
+```r
+# keeping one of the arguments empty ([,a] OR [a,]) gives you all rows
+# and columns specified by a, or all columns and rows specified by a
+input[5,] # row = 5, column = ALL
+```
+
+```
+##   period_id product_id X1.sales X1.items X2.sales X2.items X3.sales
+## 5     28757     809182 115571.7     4588 24604.64      824 314526.7
+##   X3.items X4.sales X4.items X5.sales X5.items cat
+## 5     4097  73507.5     3375 95511.52     1222   1
+```
+
+```r
+input$period_id[5] # choose column named period_id, 5th value (=row) only
+```
+
+```
+## [1] 28757
+```
+
+---
+
+# READING FLATFILES
+
+
+```r
+# BASE
+raw_b = read.csv("data/main.csv")
+# TIDYVERSE
+raw_t = readr::read_csv("data/main.csv", col_types = cols())
+# DATA.TABLE
+raw_d = data.table::fread("data/main.csv")
+```
+
+---
+
+# FILTER &amp; SELECT
+
+```r
+# BASE
+raw_b[raw_b$X1.sales &lt; 551,"product_id"]
+```
+
+```
+## [1] 761667
+```
+
+```r
+# TIDYVERSE
+raw_t %&gt;% 
+    filter(X1.sales &lt; 551) %&gt;% 
+    select(product_id)
+```
+
+```
+## # A tibble: 1 x 1
+##   product_id
+##        &lt;int&gt;
+## 1     761667
+```
+
+```r
+# DATA.TABLE
+raw_d[X1.sales &lt; 551, product_id]
+```
+
+```
+## [1] 761667
+```
+
+---
+
+# ARRANGE
+
+```r
+# BASE
+raw_b = raw_b[order(raw_b$X1.sales),]
+raw_b[1:5, "X1.sales"]
+```
+
+```
+## [1] 516.11 650.00 686.44 730.08 739.86
+```
+
+```r
+# TIDYVERSE
+raw_t = raw_t %&gt;% 
+    arrange(X1.sales)
+raw_t$X1.sales[1:5]
+```
+
+```
+## [1] 516.11 650.00 686.44 730.08 739.86
+```
+
+```r
+# DATA.TABLE
+raw_d = raw_d[order(X1.sales)]
+raw_d[1:5, X1.sales]
+```
+
+```
+## [1] 516.11 650.00 686.44 730.08 739.86
+```
+
+---
+
+# MUTATE
+
+```r
+# BASE
+raw_b$diff = raw_b$X1.sales - raw_b$X2.sales
+raw_b$diff[1:5]
+```
+
+```
+## [1]  -39573.94  -78135.76 -395069.29  -38563.55 -119457.66
+```
+
+```r
+# TIDYVERSE
+raw_t = raw_t %&gt;% 
+    mutate(diff = X1.sales - X2.sales)
+raw_t$diff[1:5]
+```
+
+```
+## [1]  -39573.94  -78135.76 -395069.29  -38563.55 -119457.66
+```
+
+```r
+# DATA.TABLE
+raw_d[,diff := X1.sales - X2.sales][1:5,diff]
+```
+
+```
+## [1]  -39573.94  -78135.76 -395069.29  -38563.55 -119457.66
+```
+
+---
+
+# GROUP BY &amp; SUMMARISE
+
+```r
+# BASE
+aggregate(X1.sales ~ cat, raw_b, sum)
+```
+
+```
+##   cat   X1.sales
+## 1   1 1334284894
+## 2   2 1331752490
+## 3   3 1342135867
+```
+
+```r
+# TIDYVERSE
+raw_b %&gt;% 
+    group_by(cat) %&gt;% 
+    summarise(sales = sum(X1.sales))
+```
+
+```
+## # A tibble: 3 x 2
+##     cat      sales
+##   &lt;int&gt;      &lt;dbl&gt;
+## 1     1 1334284894
+## 2     2 1331752490
+## 3     3 1342135867
+```
+
+---
+
+
+```r
+# DATA.TABLE
+raw_d[,.(sales = sum(X1.sales)), by = cat]
+```
+
+```
+##    cat      sales
+## 1:   1 1334284894
+## 2:   3 1342135867
+## 3:   2 1331752490
+```
+
+---
+
+# WRITE FLATFILES
+
+
+```r
+# BASE
+write.csv(raw_b, "data/main.csv")
+# TIDYVERSE
+readr::write_csv(raw_t, "data/main.csv")
+# DATA.TABLE
+data.table::fwrite(raw_d, "data/main.csv")
+```
+
+---
+
+# Key words - multi-table and looping
+- bind
+- joins
+- vectorisation
+
+---
+
+# BINDING
+- implemented in base R
+- just glue tables together
+
+
+
+
+.pull-left[
+
+```r
+    tab1
+```
+
+```
+##   a b
+## 1 1 5
+## 2 2 6
+## 3 3 7
+## 4 4 8
+```
+]
+
+.pull-right[
+
+```r
+    tab2
+```
+
+```
+##   d g
+## 1 2 a
+## 2 3 b
+## 3 4 c
+## 4 5 d
+```
+]
+
+```r
+tab3
+```
+
+```
+##    a  b
+## 1 10 20
+## 2 11 21
+## 3 12 22
+## 4 13 23
+## 5 14 24
+## 6 15 25
+```
+
+---
+
+
+```r
+rbind(tab1, tab3) # bind rows (need same column names)
+```
+
+```
+##     a  b
+## 1   1  5
+## 2   2  6
+## 3   3  7
+## 4   4  8
+## 5  10 20
+## 6  11 21
+## 7  12 22
+## 8  13 23
+## 9  14 24
+## 10 15 25
+```
+
+```r
+cbind(tab1, tab2) # bind columns (need same number of rows)
+```
+
+```
+##   a b d g
+## 1 1 5 2 a
+## 2 2 6 3 b
+## 3 3 7 4 c
+## 4 4 8 5 d
+```
+
+---
+
+# JOINS
+- think vlookups (svyhledat)
+- joinig two tables
+    - on **ID!**
+
+&lt;img src=www/joins.png&gt;
+
+---
+
+
+
+
+```r
+# BASE, control by all.x = T/F &amp; all.y = T/F
+joint_b = merge(raw_b, ref, by = "period_id")
+c(original = ncol(raw_b), merged = ncol(joint_b))
+```
+
+```
+## original   merged 
+##       14       16
+```
+
+```r
+# TIDYVERSE, control by different function names (left_join, ...)
+joint_t = inner_join(raw_t, ref, by = "period_id")
+c(original = ncol(raw_t), merged = ncol(joint_t))
+```
+
+```
+## original   merged 
+##       14       16
+```
+
+```r
+# DATA.TABLE, control by nomatch, or different positions (X[Y] OR Y[x])
+joint_d = raw_d[ref, on = "period_id"]
+c(original = ncol(raw_d), merged = ncol(joint_d))
+```
+
+```
+## original   merged 
+##       14       16
+```
+
+---
+
+# Vectorisation
+- avoid for loops!
+
+&lt;img src= www/purrr.jpg height = 450&gt;
+
+---
+
+# Vectorisation
+
+```r
+file_names = list.files("data/sub", full.names = T)
+
+# BASE
+raw_b = lapply(file_names, read.csv) # list of tables
+raw_b = do.call(rbind, raw_b) # rbind tables into one
+
+# TIDYVERSE
+raw_t = map_df(file_names, read.csv) # nice and simple
+
+# DATA.TABLE
+raw_d = as.data.table(file_names)[,fread(file_names), by = file_names]
+```
+    </textarea>
+<script src="https://remarkjs.com/downloads/remark-latest.min.js"></script>
+<script>var slideshow = remark.create({
+"highlightStyle": "github",
+"highlightLines": true,
+"countIncrementalSlides": false
+});
+if (window.HTMLWidgets) slideshow.on('afterShowSlide', function (slide) {
+  window.dispatchEvent(new Event('resize'));
+});
+(function() {
+  var d = document, s = d.createElement("style"), r = d.querySelector(".remark-slide-scaler");
+  if (!r) return;
+  s.type = "text/css"; s.innerHTML = "@page {size: " + r.style.width + " " + r.style.height +"; }";
+  d.head.appendChild(s);
+})();</script>
+
+<script type="text/x-mathjax-config">
+MathJax.Hub.Config({
+  tex2jax: {
+    skipTags: ['script', 'noscript', 'style', 'textarea', 'pre']
+  }
+});
+</script>
+<!-- dynamically load mathjax for compatibility with self-contained -->
+<script>
+(function () {
+  var script = document.createElement('script');
+  script.type = 'text/javascript';
+  script.src  = 'https://cdn.bootcss.com/mathjax/2.7.1/MathJax.js?config=TeX-MML-AM_CHTML';
+  if (location.protocol !== 'file:' && /^https?:/.test(script.src))
+    script.src  = script.src.replace(/^https?:/, '');
+  document.getElementsByTagName('head')[0].appendChild(script);
+})();
+</script>
+  </body>
+</html>
