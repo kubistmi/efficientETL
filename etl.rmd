@@ -16,18 +16,20 @@ options(htmltools.dir.version = FALSE)
 library(magrittr)
 library(data.table)
 library(tidyverse)
+library(xaringan)
 ```
 
 class: center, middle
 
-# What's ETL?
+# <a href="https://www.keylink.net.au/etl">What's ETL?</a>
 <img src = www/etl.jpg>
 
 ---
 
 # Terminology
-- table
+- data.frame / data.table
 - vector
+- list
 
 ---
 
@@ -52,11 +54,12 @@ class: center, middle
 - arrange
 - mutate
 - group by & summarize
+- spread & gather
 - write
 
 ---
 
-# Base R (no package)
+# Basics (no package)
 
 ```{r base_func}
 input <- read.csv("data/main.csv")
@@ -172,6 +175,51 @@ raw_d[,.(sales = sum(X1.sales)), by = cat]
 
 ---
 
+# SPREAD & GATHER
+
+```{r gather}
+# BASE = never heard of one
+# TIDYVERSE gather
+raw_ts = 
+    raw_t %>%
+    select(period_id, product_id, X1.sales, X2.sales) %>% 
+    gather(key = "type", value = "sales", X1.sales, X2.sales)
+raw_ts
+
+```
+
+---
+
+```{r spread}
+# TIDYVERSE spread
+raw_ts %>% 
+    spread("type", "sales")
+
+```
+
+---
+
+```{r melt}
+# DATA.TABLE "spread"
+raw_dm =
+    raw_d[,.(period_id, product_id, X1.sales, X2.sales)] %>% 
+    melt(id.vars = c("period_id", "product_id"),
+         measure.vars = c("X1.sales", "X2.sales"))
+raw_dm
+
+```
+
+---
+
+```{r dcast}
+# DATA.TABLE "gather"
+raw_dm %>% 
+    dcast(period_id + product_id ~ variable)
+
+```
+
+---
+
 # WRITE FLATFILES
 
 ```{r write, eval=FALSE}
@@ -227,8 +275,8 @@ cbind(tab1, tab2) # bind columns (need same number of rows)
 
 ---
 
-# JOINS
-- think vlookups (svyhledat)
+# <a href="http://www.dofactory.com/sql/join">JOINS</a>
+- think vlookup (svyhledat)
 - joinig two tables
     - on **ID!**
 

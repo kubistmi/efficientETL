@@ -22,14 +22,15 @@ class: center, middle, inverse, title-slide
 
 class: center, middle
 
-# What's ETL?
+# &lt;a href="https://www.keylink.net.au/etl"&gt;What's ETL?&lt;/a&gt;
 &lt;img src = www/etl.jpg&gt;
 
 ---
 
 # Terminology
-- table
+- data.frame / data.table
 - vector
+- list
 
 ---
 
@@ -54,11 +55,12 @@ class: center, middle
 - arrange
 - mutate
 - group by &amp; summarize
+- spread &amp; gather
 - write
 
 ---
 
-# Base R (no package)
+# Basics (no package)
 
 
 ```r
@@ -293,6 +295,115 @@ raw_d[,.(sales = sum(X1.sales)), by = cat]
 
 ---
 
+# SPREAD &amp; GATHER
+
+
+```r
+# BASE = never heard of one
+# TIDYVERSE gather
+raw_ts = 
+    raw_t %&gt;%
+    select(period_id, product_id, X1.sales, X2.sales) %&gt;% 
+    gather(key = "type", value = "sales", X1.sales, X2.sales)
+raw_ts
+```
+
+```
+## # A tibble: 60,000 x 4
+##    period_id product_id type     sales
+##        &lt;int&gt;      &lt;int&gt; &lt;chr&gt;    &lt;dbl&gt;
+##  1     29642     761667 X1.sales   516
+##  2      7565     784224 X1.sales   650
+##  3     28690     198207 X1.sales   686
+##  4     25006     719372 X1.sales   730
+##  5      6222     116037 X1.sales   740
+##  6     13194     653312 X1.sales   759
+##  7     11599     881101 X1.sales   816
+##  8     12745     304632 X1.sales   914
+##  9     15723     205137 X1.sales   958
+## 10      6630     753470 X1.sales   979
+## # ... with 59,990 more rows
+```
+
+---
+
+
+```r
+# TIDYVERSE spread
+raw_ts %&gt;% 
+    spread("type", "sales")
+```
+
+```
+## # A tibble: 30,000 x 4
+##    period_id product_id X1.sales X2.sales
+##  *     &lt;int&gt;      &lt;int&gt;    &lt;dbl&gt;    &lt;dbl&gt;
+##  1         1     715270    50858    10705
+##  2         2     729466    73064    25997
+##  3         3     396682   121722   146225
+##  4         4     524832   282089   107900
+##  5         5     787970    72313   145650
+##  6         6     724768    24864    62136
+##  7         7     368665   171013    99997
+##  8         8     584925    66074   168560
+##  9         9     342263    98727   127408
+## 10        10     859470   105711     6836
+## # ... with 29,990 more rows
+```
+
+---
+
+
+```r
+# DATA.TABLE "spread"
+raw_dm =
+    raw_d[,.(period_id, product_id, X1.sales, X2.sales)] %&gt;% 
+    melt(id.vars = c("period_id", "product_id"),
+         measure.vars = c("X1.sales", "X2.sales"))
+raw_dm
+```
+
+```
+##        period_id product_id variable     value
+##     1:     29642     761667 X1.sales    516.11
+##     2:      7565     784224 X1.sales    650.00
+##     3:     28690     198207 X1.sales    686.44
+##     4:     25006     719372 X1.sales    730.08
+##     5:      6222     116037 X1.sales    739.86
+##    ---                                        
+## 59996:     25091     112398 X2.sales  34487.50
+## 59997:     27472     909593 X2.sales 234833.60
+## 59998:     29019     361990 X2.sales 227612.51
+## 59999:     21474     778899 X2.sales  44396.76
+## 60000:       471     850535 X2.sales  52009.94
+```
+
+---
+
+
+```r
+# DATA.TABLE "gather"
+raw_dm %&gt;% 
+    dcast(period_id + product_id ~ variable)
+```
+
+```
+##        period_id product_id  X1.sales  X2.sales
+##     1:         1     715270  50857.68  10704.56
+##     2:         2     729466  73063.62  25997.22
+##     3:         3     396682 121722.48 146224.96
+##     4:         4     524832 282089.48 107899.54
+##     5:         5     787970  72313.40 145649.70
+##    ---                                         
+## 29996:     29996     563885 148092.00 208262.88
+## 29997:     29997     834501  99288.65 464340.51
+## 29998:     29998     395804 135663.28 192455.64
+## 29999:     29999     514153  18673.32 155421.05
+## 30000:     30000     482946  15833.00 104856.72
+```
+
+---
+
 # WRITE FLATFILES
 
 
@@ -400,8 +511,8 @@ cbind(tab1, tab2) # bind columns (need same number of rows)
 
 ---
 
-# JOINS
-- think vlookups (svyhledat)
+# &lt;a href="http://www.dofactory.com/sql/join"&gt;JOINS&lt;/a&gt;
+- think vlookup (svyhledat)
 - joinig two tables
     - on **ID!**
 
