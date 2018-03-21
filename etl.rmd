@@ -25,6 +25,11 @@ class: center, middle
 <img src = www/etl.jpg>
 
 ---
+class: center, middle
+
+# Efficiency?
+
+---
 
 # Terminology
 - data.frame / data.table
